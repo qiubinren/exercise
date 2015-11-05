@@ -1,5 +1,4 @@
 #include <iostream>
-#include <iomanip>
 #include <cstring>
 
 using namespace std;
@@ -7,131 +6,115 @@ using namespace std;
 class CString
 {
 public:
-	CString(const char* str = NULL);	
-	CString(const CString& str);	
-	~CString();
-	friend ostream & operator << (ostream& out,const CString& str);
-	friend istream & operator >> (istream& in,CString& str);
-	CString& operator = (const char*& str);		
-	CString& operator = (const CString& str);		
+	CString(const char* cstr = 0);
+	CString(const CString& str);
+	CString& operator = (const CString& str);
 	CString operator + (const CString& str)const;
-	CString operator + (const char*& str)const;
-	bool operator == (const char* str)const;
+	CString operator + (const char* cstr)const;
 	bool operator == (const CString& str)const;
-	const char operator [] (int i)const;
-	size_t size()const;
-private:
-	char *m_str;
-};
-CString::CString(const char* str)
-{
-	if(!str)
-		m_str = new char[1];
-	else{
-		m_str =new char[strlen(str)+1];
-		strcpy(m_str,str);
+	bool operator == (const char* cstr)const;
+	char operator [](int i)const
+	{
+		return m_data[i];
 	}
-}
-CString::CString(const CString& str)
+	~CString();
+	char* get_c_str() const	
+	{
+		return m_data;
+	}
+	int size() const
+	{
+		return n;
+	}
+private:
+	int n;
+	char *m_data;
+};
+inline CString::CString(const char* cstr)
 {
-	if(!str.m_str)
-		m_str = NULL;
+	if(cstr)
+	{
+		n = strlen(cstr);
+		m_data = new char[n+1];
+		strcpy(m_data, cstr);
+	}
 	else
 	{
-		m_str = new char(strlen(str.m_str)+1);
-		strcpy(m_str,str.m_str);
+		n = 0;
+		m_data = new char[1];	
+		*m_data = 0;
 	}
 }
-CString::~CString()
+inline CString::~CString()
 {
-	delete []m_str;
+	delete []m_data;
 }
-ostream & operator << (ostream& out,const CString& str)
+inline CString::CString(const CString& str)
 {
-	out << str.m_str;
-	return out;
+	n = strlen(str.m_data);
+	m_data = new char[n+1];
+	strcpy(m_data, str.m_data);
 }
-istream & operator >> (istream& in,CString& str)
+inline CString & CString::operator = (const CString& str)
 {
-	char temp[255];
-	in >> setw(255)>>str.m_str;
-	str = temp;
-	return in;
-}
-CString& CString::operator = (const char*& str)
-{
-	delete []m_str;
-	if(!str)
-		m_str=NULL;
-	else{
-		m_str = new char[strlen(str)+1];
-		strcpy(m_str,str);
-	}
+	if(this == &str)
+		return *this;
+	delete []m_data;
+	n = strlen(str.m_data);
+	m_data = new char[n+1];
+	strcpy(m_data, str.m_data);
 	return *this;
 }
-CString& CString::operator = (const CString& str)
+inline CString  CString::operator +(const CString& str) const
 {
-	delete []m_str;
-	if(!str.m_str)
-		m_str=NULL;
-	else{
-		m_str = new char[strlen(str.m_str)+1];
-		strcpy(m_str,str.m_str);
-	}
-	return *this;
+	char *tmp = new char[n+str.n+1];
+	strcpy(tmp, m_data);
+	strcat(tmp, str.m_data);
+	CString tmpstr(tmp);
+	delete []tmp;
+	return tmpstr;
 }
-CString CString::operator + (const CString& str)const
+inline CString  CString::operator +(const char* cstr)const
 {
-	CString newString;
-	if(!str.m_str)
-		newString = *this;
-	else if(!m_str)
-		newString = str;
-	else{
-		newString = new char[strlen(m_str)+strlen(str.m_str)+1];
-		strcpy(newString.m_str,m_str);
-		strcat(newString.m_str,str.m_str);
-	}
-	return newString;
+	char *tmp = new char[n+strlen(cstr)+1];
+	strcpy(tmp, m_data);
+	strcat(tmp, cstr);
+	CString tmpstr(tmp);
+	delete []tmp;
+	return tmpstr;
 }
-CString CString::operator + (const char*& str)const
+CString operator +(const char* cstr,const CString& str)
 {
-	CString newString;
-	if(!m_str)
-		newString = *this;
-	else if(!m_str)
-		newString = str;
-	else{
-		newString = new char[strlen(m_str)+strlen(str)+1];
-		strcpy(newString.m_str,m_str);
-		strcat(newString.m_str,str);
-	}
-	return newString;
+	char *tmp = new char[strlen(cstr)+str.size()+1];
+	strcpy(tmp, cstr);
+	strcat(tmp, str.get_c_str());
+	CString tmpstr(tmp);
+	delete []tmp;
+	return tmpstr;
 }
-bool CString::operator == (const char* str)const
+inline bool CString::operator == (const CString& str)const
 {
-	if(strlen(str)!=strlen(m_str))
-		return false;
-	return strcmp(m_str,str)?false:true;
+	return strcmp(m_data, str.m_data)?false:true;
 }
-bool CString::operator == (const CString& str)const
+inline bool CString::operator == (const char* cstr)const
 {
-	if(strlen(m_str)!=strlen(str.m_str))
-		return false;
-	return strcmp(m_str,str.m_str)?false:true;
+	return strcmp(m_data, cstr)?false:true;
 }
-size_t CString::size()const
+bool operator ==(const char* cstr,const CString& str)
 {
-	return strlen(m_str);
+	return strcmp(cstr,str.get_c_str())?false:true;
 }
-const char CString::operator [] (int i)const
+
+ostream& operator << (ostream& os, const CString& str)
 {
-	return m_str[i];
+	os<<str.get_c_str();
+	return os;
 }
+	
 int main()
 {
 	CString a("wo");
-	CString b=a+b;
+	CString b=a;
 	CString c(b);
 	CString d="adf";
 	cout<<a<<endl;
@@ -143,6 +126,7 @@ int main()
 	cout<<(b==d)<<endl;
 	cout<<(c+d)<<endl;
 	cout<<(c+"shi")<<endl;
+	cout<<("shi"+c)<<endl;
 	cout<<d.size()<<endl;
 	cout<<a[1]<<endl;
 	return 0;
