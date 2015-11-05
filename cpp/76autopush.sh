@@ -5,8 +5,9 @@ currenttime=$(date +%H-%M)
 currentday=$(date)
 if [ $currenttime == '12-00' ]
 then
-git add /home/qiubinren/daydayup/69gitlearn/readme.txt
+cd /home/qiubinren/exercese
+git add *
 git commit -m "autopush-$currentday"
-sleep 3600*12;
+git push -m origin master
 fi
 done
