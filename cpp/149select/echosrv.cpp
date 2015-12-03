@@ -8,6 +8,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <cstring>
+#include <sys/select.h>
+#include <signal.h>
 #define ERR_EXIT(m) \
 	do \
 	{ \
@@ -106,32 +108,11 @@ ssize_t readline(int fd, void *buf, size_t maxsize)
 	return -1;
 }
 
-void echo_ser(int sock)
-{
-	char recvbuf[1024];	
-	int ret;
-	while(1)
-	{
-		memset(recvbuf, 0, sizeof(recvbuf));
-		ret = readline(sock, recvbuf, sizeof(recvbuf));
-		if(ret == -1)
-		{
-			perror("readline");
-			break;
-		}
-		if(ret == 0)
-		{
-			std::cout<<"client close"<<std::endl;
-			break;
-		}
-		std::cout<<recvbuf;
-		writen(sock, recvbuf, strlen(recvbuf));
-	}
-	shutdown(sock,1);
-}
 int main()
 {
 	int sock;
+	int i;
+	char recvbuf[1024];
 	if((sock = socket(AF_INET, SOCK_STREAM, 0))<0)
 		ERR_EXIT("socket");
 	int reuse = 1;
@@ -145,22 +126,71 @@ int main()
 		ERR_EXIT("bind");
 	if(listen(sock,10)<0)
 		ERR_EXIT("listen");
+	fd_set rfd[2];
+	FD_ZERO(&rfd[0]);
+	FD_SET(sock,&rfd[0]);
+	int maxfd = sock;
+	int fd[50] = {0};
+	int count = 0;
+	fd[0] = sock;
 	while(1)
 	{
-		struct sockaddr_in cliaddr;
-		memset(&cliaddr, 0, sizeof(cliaddr));
-		socklen_t len=0;
-		int c = accept(sock, (struct sockaddr*)&cliaddr, &len);
-		if(c <= 0)
-			continue;
-		int pid = fork();
-		if(pid < 0)
-			ERR_EXIT("fork");
-		else if(pid == 0)
+		FD_ZERO(&rfd[1]);
+		rfd[1] = rfd[0];
+		struct timeval timeout;
+		timeout.tv_sec = 5;
+		timeout.tv_usec = 0;
+		int ret = select(maxfd+1, &rfd[1], NULL, NULL, &timeout);
+		if(ret == -1)
+			ERR_EXIT("select");
+		else if(ret == 0)
 		{
-			echo_ser(c);
-			return -1;
+			std::cout<<"timeout"<<std::endl;
+			continue;
 		}
-		close(c);
+		if(FD_ISSET(fd[0], &rfd[1])&&count<49)
+		{
+			struct sockaddr_in si;
+			memset(&si, 0, sizeof(si));
+			socklen_t len;
+			int tmp = accept(fd[0], (struct sockaddr*)&si, &len);
+			FD_SET(tmp, &rfd[0]);
+			count++;
+			for(i=1;i<50;i++)
+				if(fd[i] == 0)
+					break;	
+			fd[i] = tmp;
+			if(maxfd < fd[i])
+				maxfd = fd[i];
+		}
+		for(i=1;i<50;i++)
+		{
+			if(FD_ISSET(fd[i],&rfd[1]))
+			{
+				memset(recvbuf, 0, sizeof(recvbuf));
+				int ret = readline(fd[i], recvbuf, sizeof(recvbuf));
+				if(ret == -1)
+					ERR_EXIT("readline");
+				if(ret == 0)
+				{
+					std::cout<<"client close!"<<std::endl;
+					FD_CLR(fd[i], &rfd[0]);
+					close(fd[i]);
+					int t = fd[i];
+					fd[i] = 0; 
+					if(t == maxfd)
+					{
+						maxfd = 0;
+						for(int j=0; j<50; j++)
+							if(maxfd < fd[j])
+								maxfd = fd[j];
+					}
+					continue;
+				}
+				std::cout<<recvbuf;
+				writen(fd[i], recvbuf, strlen(recvbuf));
+			}
+		}
 	}
+	return 0;
 }

@@ -111,29 +111,29 @@ void echo_cli(int sock)
 {
 	char sendbuf[1024],recvbuf[1024];	
 	int ret;
-	memset(sendbuf, 0, sizeof(sendbuf));
-	memset(recvbuf, 0, sizeof(recvbuf));
-	while(fgets(sendbuf, sizeof(sendbuf),stdin)!=NULL)
+	while(1)
 	{
-		int len = strlen(sendbuf);
-//		writen(sock, sendbuf, len);
-		write(sock, sendbuf, 1);
-		write(sock, sendbuf+1, strlen(sendbuf)-1);
-		
-		ret = readline(sock, recvbuf, sizeof(recvbuf));
-		if(ret == -1)
-		{
-			perror("readline");
+		fd_set rfd;
+		FD_ZERO(&rfd);
+		FD_SET(0, &rfd);
+		FD_SET(sock, &rfd);	
+		ret = select(sock+1, &rfd, NULL, NULL, NULL);
+		if(ret <= 0)
 			break;
-		}
-		if(ret == 0)
+		if(FD_ISSET(sock,&rfd))
 		{
-			std::cout<<"server close"<<std::endl;
-			break;
+			memset(recvbuf, 0, sizeof(recvbuf));
+			readline(sock, recvbuf, sizeof(recvbuf));
+			if(recvbuf[0]==0)
+				break;
+			std::cout<<recvbuf;
 		}
-		std::cout<<recvbuf;
-		memset(sendbuf, 0, sizeof(sendbuf));
-		memset(recvbuf, 0, sizeof(recvbuf));
+		if(FD_ISSET(0,&rfd))
+		{
+			memset(sendbuf, 0 ,sizeof(sendbuf));
+			fgets(sendbuf, sizeof(sendbuf), stdin);
+			writen(sock, sendbuf, strlen(sendbuf));
+		}
 	}
 	shutdown(sock,1);
 }
